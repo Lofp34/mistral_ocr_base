@@ -1,0 +1,348 @@
+# Optimisation et Performance
+
+## Gestion de la Mémoire
+
+### Traitement de Gros Fichiers
+```python
+import os
+from pathlib import Path
+
+def process_large_document_by_chunks(file_path: str, chunk_size: int = 5):
+    """
+    Traite un gros document par chunks de pages
+    """
+    # Obtenir le nombre total de pages
+    total_pages = get_document_page_count(file_path)
+    
+    results = []
+    
+    for start_page in range(0, total_pages, chunk_size):
+        end_page = min(start_page + chunk_size - 1, total_pages - 1)
+        
+        # Traitement par chunk
+        chunk_result = client.ocr.process(
+            model="mistral-ocr-latest",
+            document=DocumentURLChunk(document_url=file_path),
+            pages=list(range(start_page, end_page + 1))
+        )
+        
+        results.append(chunk_result)
+        
+        # Libération de mémoire
+        del chunk_result
+    
+    return merge_chunk_results(results)
+```
+
+### Gestion des Images
+```python
+def optimize_image_processing(response, image_limit: int = 10, min_size: int = 100):
+    """
+    Optimise le traitement des images extraites
+    """
+    if not response.pages:
+        return response
+    
+    for page in response.pages:
+        if hasattr(page, 'images') and page.images:
+            # Filtrer les images par taille
+            filtered_images = [
+                img for img in page.images 
+                if img.get('width', 0) >= min_size and img.get('height', 0) >= min_size
+            ]
+            
+            # Limiter le nombre d'images
+            page.images = filtered_images[:image_limit]
+    
+    return response
+```
+
+## Mise en Cache
+
+### Cache des Résultats OCR
+```python
+import hashlib
+import json
+import pickle
+from pathlib import Path
+
+class OcrCache:
+    def __init__(self, cache_dir: str = "cache"):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(exist_ok=True)
+    
+    def _get_cache_key(self, document_url: str, parameters: dict) -> str:
+        """Génère une clé de cache unique"""
+        content = f"{document_url}:{json.dumps(parameters, sort_keys=True)}"
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    def get(self, document_url: str, parameters: dict = None) -> dict:
+        """Récupère un résultat du cache"""
+        if parameters is None:
+            parameters = {}
+        
+        cache_key = self._get_cache_key(document_url, parameters)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        
+        if cache_file.exists():
+            try:
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception:
+                # En cas d'erreur, supprimer le fichier corrompu
+                cache_file.unlink()
+        
+        return None
+    
+    def set(self, document_url: str, result: dict, parameters: dict = None):
+        """Stocke un résultat dans le cache"""
+        if parameters is None:
+            parameters = {}
+        
+        cache_key = self._get_cache_key(document_url, parameters)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(result, f)
+        except Exception as e:
+            print(f"Erreur lors de la mise en cache: {e}")
+
+# Utilisation
+cache = OcrCache()
+
+def process_document_with_cache(document_url: str, parameters: dict = None):
+    """Traite un document avec mise en cache"""
+    # Vérifier le cache
+    cached_result = cache.get(document_url, parameters)
+    if cached_result:
+        return cached_result
+    
+    # Traitement OCR
+    result = client.ocr.process(
+        model="mistral-ocr-latest",
+        document=DocumentURLChunk(document_url=document_url),
+        **parameters or {}
+    )
+    
+    # Mise en cache
+    cache.set(document_url, result, parameters)
+    
+    return result
+```
+
+## Traitement Asynchrone
+
+### Traitement Parallèle
+```python
+import asyncio
+import aiohttp
+from concurrent.futures import ThreadPoolExecutor
+
+class AsyncOcrProcessor:
+    def __init__(self, max_workers: int = 5):
+        self.max_workers = max_workers
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+    
+    async def process_multiple_documents(self, document_urls: list[str]):
+        """Traite plusieurs documents en parallèle"""
+        tasks = []
+        
+        for url in document_urls:
+            task = asyncio.create_task(self._process_single_document(url))
+            tasks.append(task)
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return results
+    
+    async def _process_single_document(self, document_url: str):
+        """Traite un document de manière asynchrone"""
+        loop = asyncio.get_event_loop()
+        
+        # Exécuter le traitement OCR dans un thread séparé
+        result = await loop.run_in_executor(
+            self.executor,
+            self._sync_ocr_process,
+            document_url
+        )
+        
+        return result
+    
+    def _sync_ocr_process(self, document_url: str):
+        """Traitement OCR synchrone"""
+        return client.ocr.process(
+            model="mistral-ocr-latest",
+            document=DocumentURLChunk(document_url=document_url)
+        )
+
+# Utilisation
+async def main():
+    processor = AsyncOcrProcessor(max_workers=3)
+    urls = [
+        "https://example.com/doc1.pdf",
+        "https://example.com/doc2.pdf",
+        "https://example.com/doc3.pdf"
+    ]
+    
+    results = await processor.process_multiple_documents(urls)
+    return results
+```
+
+## Optimisation des Requêtes
+
+### Paramètres Optimisés
+```python
+def get_optimized_ocr_parameters(use_case: str) -> dict:
+    """
+    Retourne des paramètres optimisés selon le cas d'usage
+    """
+    base_params = {
+        "model": "mistral-ocr-latest",
+        "include_image_base64": False,  # Désactiver si pas besoin
+        "image_limit": 5,  # Limiter le nombre d'images
+        "image_min_size": 200  # Filtrer les petites images
+    }
+    
+    if use_case == "text_extraction":
+        # Optimisation pour extraction de texte pure
+        return {
+            **base_params,
+            "include_image_base64": False,
+            "image_limit": 0  # Pas d'images
+        }
+    
+    elif use_case == "form_processing":
+        # Optimisation pour formulaires
+        return {
+            **base_params,
+            "include_image_base64": True,
+            "image_limit": 10,
+            "image_min_size": 100
+        }
+    
+    elif use_case == "invoice_processing":
+        # Optimisation pour factures
+        return {
+            **base_params,
+            "include_image_base64": True,
+            "image_limit": 5,
+            "image_min_size": 150
+        }
+    
+    return base_params
+```
+
+## Monitoring des Performances
+
+### Métriques de Performance
+```python
+import time
+import psutil
+import logging
+
+class PerformanceMonitor:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+    
+    def monitor_ocr_performance(self, func):
+        """Décorateur pour monitorer les performances OCR"""
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            start_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
+            
+            try:
+                result = func(*args, **kwargs)
+                
+                end_time = time.time()
+                end_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
+                
+                execution_time = end_time - start_time
+                memory_used = end_memory - start_memory
+                
+                self.logger.info(f"OCR Performance - Time: {execution_time:.2f}s, Memory: {memory_used:.2f}MB")
+                
+                return result
+                
+            except Exception as e:
+                self.logger.error(f"OCR Error - {e}")
+                raise
+        
+        return wrapper
+
+# Utilisation
+monitor = PerformanceMonitor()
+
+@monitor.monitor_ocr_performance
+def process_document_optimized(document_url: str):
+    """Version optimisée du traitement de document"""
+    return client.ocr.process(
+        model="mistral-ocr-latest",
+        document=DocumentURLChunk(document_url=document_url),
+        **get_optimized_ocr_parameters("text_extraction")
+    )
+```
+
+## Optimisation des Réponses
+
+### Filtrage des Données
+```python
+def optimize_ocr_response(response: dict, include_text: bool = True, 
+                         include_images: bool = False, include_metadata: bool = False):
+    """
+    Optimise la réponse OCR en filtrant les données non nécessaires
+    """
+    if not response or 'pages' not in response:
+        return response
+    
+    optimized_pages = []
+    
+    for page in response['pages']:
+        optimized_page = {}
+        
+        if include_text and 'text' in page:
+            optimized_page['text'] = page['text']
+        
+        if include_images and 'images' in page:
+            optimized_page['images'] = page['images']
+        
+        if include_metadata and 'metadata' in page:
+            optimized_page['metadata'] = page['metadata']
+        
+        optimized_pages.append(optimized_page)
+    
+    return {
+        'pages': optimized_pages,
+        'model': response.get('model'),
+        'usage_info': response.get('usage_info')
+    }
+```
+
+## Bonnes Pratiques de Performance
+
+### Recommandations Générales
+- Utiliser la mise en cache pour les documents fréquemment traités
+- Traiter les gros documents par chunks
+- Optimiser les paramètres selon le cas d'usage
+- Monitorer l'utilisation mémoire et CPU
+- Implémenter un système de retry avec backoff exponentiel
+- Utiliser le traitement asynchrone pour les lots de documents
+- Filtrer les données de réponse selon les besoins
+- Maintenir un pool de connexions pour les requêtes HTTP
+
+### Configuration Optimale
+```python
+OPTIMAL_CONFIG = {
+    "max_concurrent_requests": 5,
+    "cache_enabled": True,
+    "cache_ttl": 3600,  # 1 heure
+    "chunk_size": 5,  # pages par chunk
+    "retry_attempts": 3,
+    "retry_delay": 1,  # secondes
+    "timeout": 300,  # secondes
+    "memory_limit": 1024  # MB
+}
+```
+description:
+globs:
+alwaysApply: false
+---

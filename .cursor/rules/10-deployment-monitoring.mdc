@@ -1,0 +1,492 @@
+# Déploiement et Monitoring
+
+## Configuration d'Environnement
+
+### Variables d'Environnement
+```bash
+# .env
+MISTRAL_API_KEY=your_api_key_here
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+CACHE_ENABLED=true
+CACHE_TTL=3600
+MAX_CONCURRENT_REQUESTS=10
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=3600
+```
+
+### Configuration par Environnement
+```python
+import os
+from typing import Dict, Any
+
+class EnvironmentConfig:
+    def __init__(self):
+        self.environment = os.getenv("ENVIRONMENT", "development")
+        self.configs = {
+            "development": {
+                "log_level": "DEBUG",
+                "cache_enabled": False,
+                "max_concurrent_requests": 3,
+                "timeout": 60
+            },
+            "staging": {
+                "log_level": "INFO",
+                "cache_enabled": True,
+                "max_concurrent_requests": 5,
+                "timeout": 120
+            },
+            "production": {
+                "log_level": "WARNING",
+                "cache_enabled": True,
+                "max_concurrent_requests": 10,
+                "timeout": 300
+            }
+        }
+    
+    def get_config(self) -> Dict[str, Any]:
+        return self.configs.get(self.environment, self.configs["development"])
+
+config = EnvironmentConfig()
+```
+
+## Déploiement avec Docker
+
+### Dockerfile
+```dockerfile
+FROM python:3.11-slim
+
+# Installation des dépendances système
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Définition du répertoire de travail
+WORKDIR /app
+
+# Copie des fichiers de dépendances
+COPY requirements.txt .
+
+# Installation des dépendances Python
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copie du code source
+COPY src/ ./src/
+COPY .env .
+
+# Création des répertoires nécessaires
+RUN mkdir -p logs cache data/temp
+
+# Exposition du port
+EXPOSE 8000
+
+# Commande de démarrage
+CMD ["python", "-m", "src.main"]
+```
+
+### docker-compose.yml
+```yaml
+version: '3.8'
+
+services:
+  mistral-ocr:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+```
+
+## Monitoring et Observabilité
+
+### Logging Structuré
+```python
+import logging
+import json
+from datetime import datetime
+from typing import Dict, Any
+
+class StructuredLogger:
+    def __init__(self, name: str):
+        self.logger = logging.getLogger(name)
+        self.setup_logging()
+    
+    def setup_logging(self):
+        """Configure le logging structuré"""
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        # Handler pour fichier
+        file_handler = logging.FileHandler('logs/mistral_ocr.log')
+        file_handler.setFormatter(formatter)
+        
+        # Handler pour console
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.setLevel(logging.INFO)
+    
+    def log_ocr_request(self, document_url: str, parameters: Dict[str, Any], 
+                       user_id: str = None, request_id: str = None):
+        """Log une requête OCR"""
+        log_data = {
+            "event": "ocr_request",
+            "timestamp": datetime.now().isoformat(),
+            "document_url": document_url,
+            "parameters": parameters,
+            "user_id": user_id,
+            "request_id": request_id
+        }
+        
+        self.logger.info(json.dumps(log_data))
+    
+    def log_ocr_response(self, request_id: str, response_time: float, 
+                        success: bool, error: str = None):
+        """Log une réponse OCR"""
+        log_data = {
+            "event": "ocr_response",
+            "timestamp": datetime.now().isoformat(),
+            "request_id": request_id,
+            "response_time": response_time,
+            "success": success,
+            "error": error
+        }
+        
+        if success:
+            self.logger.info(json.dumps(log_data))
+        else:
+            self.logger.error(json.dumps(log_data))
+
+# Utilisation
+logger = StructuredLogger("mistral_ocr")
+```
+
+### Métriques de Performance
+```python
+import time
+import psutil
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class PerformanceMetrics:
+    request_id: str
+    start_time: float
+    end_time: float
+    memory_usage: float
+    cpu_usage: float
+    success: bool
+    error_message: str = None
+
+class MetricsCollector:
+    def __init__(self):
+        self.metrics: List[PerformanceMetrics] = []
+    
+    def start_request(self, request_id: str) -> float:
+        """Démarre le monitoring d'une requête"""
+        return time.time()
+    
+    def end_request(self, request_id: str, start_time: float, 
+                   success: bool, error_message: str = None):
+        """Termine le monitoring d'une requête"""
+        end_time = time.time()
+        
+        # Collecte des métriques système
+        process = psutil.Process()
+        memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+        cpu_usage = process.cpu_percent()
+        
+        metric = PerformanceMetrics(
+            request_id=request_id,
+            start_time=start_time,
+            end_time=end_time,
+            memory_usage=memory_usage,
+            cpu_usage=cpu_usage,
+            success=success,
+            error_message=error_message
+        )
+        
+        self.metrics.append(metric)
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Calcule les statistiques de performance"""
+        if not self.metrics:
+            return {}
+        
+        successful_requests = [m for m in self.metrics if m.success]
+        failed_requests = [m for m in self.metrics if not m.success]
+        
+        response_times = [m.end_time - m.start_time for m in successful_requests]
+        memory_usage = [m.memory_usage for m in self.metrics]
+        cpu_usage = [m.cpu_usage for m in self.metrics]
+        
+        return {
+            "total_requests": len(self.metrics),
+            "successful_requests": len(successful_requests),
+            "failed_requests": len(failed_requests),
+            "success_rate": len(successful_requests) / len(self.metrics) if self.metrics else 0,
+            "avg_response_time": sum(response_times) / len(response_times) if response_times else 0,
+            "max_response_time": max(response_times) if response_times else 0,
+            "avg_memory_usage": sum(memory_usage) / len(memory_usage) if memory_usage else 0,
+            "avg_cpu_usage": sum(cpu_usage) / len(cpu_usage) if cpu_usage else 0
+        }
+
+# Utilisation
+metrics_collector = MetricsCollector()
+```
+
+## Health Checks
+
+### Endpoint de Santé
+```python
+from flask import Flask, jsonify
+import psutil
+import os
+
+app = Flask(__name__)
+
+@app.route('/health')
+def health_check():
+    """Endpoint de vérification de santé"""
+    try:
+        # Vérification de l'API key
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if not api_key:
+            return jsonify({
+                "status": "unhealthy",
+                "error": "API key not configured"
+            }), 500
+        
+        # Vérification de l'espace disque
+        disk_usage = psutil.disk_usage('/')
+        disk_percent = (disk_usage.used / disk_usage.total) * 100
+        
+        if disk_percent > 90:
+            return jsonify({
+                "status": "unhealthy",
+                "error": "Disk space critical"
+            }), 500
+        
+        # Vérification de la mémoire
+        memory = psutil.virtual_memory()
+        if memory.percent > 90:
+            return jsonify({
+                "status": "unhealthy",
+                "error": "Memory usage critical"
+            }), 500
+        
+        # Statistiques de performance
+        stats = metrics_collector.get_statistics()
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "disk_usage_percent": disk_percent,
+            "memory_usage_percent": memory.percent,
+            "performance_stats": stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 500
+
+@app.route('/metrics')
+def metrics():
+    """Endpoint pour les métriques Prometheus"""
+    stats = metrics_collector.get_statistics()
+    
+    prometheus_metrics = f"""
+# HELP mistral_ocr_requests_total Total number of OCR requests
+# TYPE mistral_ocr_requests_total counter
+mistral_ocr_requests_total {stats.get('total_requests', 0)}
+
+# HELP mistral_ocr_success_rate Success rate of OCR requests
+# TYPE mistral_ocr_success_rate gauge
+mistral_ocr_success_rate {stats.get('success_rate', 0)}
+
+# HELP mistral_ocr_response_time_seconds Average response time
+# TYPE mistral_ocr_response_time_seconds gauge
+mistral_ocr_response_time_seconds {stats.get('avg_response_time', 0)}
+"""
+    
+    return prometheus_metrics, 200, {'Content-Type': 'text/plain'}
+```
+
+## Alerting
+
+### Système d'Alerte
+```python
+import smtplib
+from email.mime.text import MIMEText
+from typing import List
+
+class AlertManager:
+    def __init__(self, smtp_server: str, smtp_port: int, 
+                 username: str, password: str, recipients: List[str]):
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.username = username
+        self.password = password
+        self.recipients = recipients
+    
+    def send_alert(self, subject: str, message: str, priority: str = "normal"):
+        """Envoie une alerte par email"""
+        try:
+            msg = MIMEText(message)
+            msg['Subject'] = f"[{priority.upper()}] {subject}"
+            msg['From'] = self.username
+            msg['To'] = ", ".join(self.recipients)
+            
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.username, self.password)
+                server.send_message(msg)
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi d'alerte: {e}")
+    
+    def check_thresholds(self, stats: Dict[str, Any]):
+        """Vérifie les seuils et envoie des alertes si nécessaire"""
+        # Seuil de taux d'échec
+        if stats.get('success_rate', 1.0) < 0.95:
+            self.send_alert(
+                "Taux d'échec OCR élevé",
+                f"Le taux de succès est de {stats['success_rate']:.2%}",
+                "high"
+            )
+        
+        # Seuil de temps de réponse
+        if stats.get('avg_response_time', 0) > 30:
+            self.send_alert(
+                "Temps de réponse OCR élevé",
+                f"Le temps de réponse moyen est de {stats['avg_response_time']:.2f}s",
+                "medium"
+            )
+        
+        # Seuil d'utilisation mémoire
+        if stats.get('avg_memory_usage', 0) > 1000:  # 1GB
+            self.send_alert(
+                "Utilisation mémoire élevée",
+                f"L'utilisation mémoire moyenne est de {stats['avg_memory_usage']:.2f}MB",
+                "medium"
+            )
+
+# Configuration des alertes
+alert_manager = AlertManager(
+    smtp_server="smtp.gmail.com",
+    smtp_port=587,
+    username="alerts@company.com",
+    password=os.getenv("SMTP_PASSWORD"),
+    recipients=["admin@company.com", "dev@company.com"]
+)
+```
+
+## Déploiement Continu
+
+### GitHub Actions
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Mistral OCR
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      - name: Run tests
+        run: |
+          pytest tests/ --cov=src --cov-report=xml
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to production
+        run: |
+          # Script de déploiement
+          echo "Deploying to production..."
+```
+
+## Bonnes Pratiques de Déploiement
+
+### Recommandations
+- Utiliser des variables d'environnement pour la configuration
+- Implémenter des health checks complets
+- Mettre en place un système de monitoring et d'alerting
+- Utiliser des conteneurs pour la portabilité
+- Implémenter un système de logs structurés
+- Configurer des métriques Prometheus
+- Mettre en place des alertes automatiques
+- Utiliser un déploiement continu (CI/CD)
+- Implémenter un rollback automatique
+- Monitorer les coûts d'API
+
+### Configuration de Production
+```python
+PRODUCTION_CONFIG = {
+    "log_level": "WARNING",
+    "cache_enabled": True,
+    "cache_ttl": 3600,
+    "max_concurrent_requests": 10,
+    "timeout": 300,
+    "retry_attempts": 3,
+    "health_check_interval": 30,
+    "metrics_collection_interval": 60,
+    "alert_thresholds": {
+        "success_rate": 0.95,
+        "response_time": 30,
+        "memory_usage": 1000
+    }
+}
+```
+description:
+globs:
+alwaysApply: false
+---

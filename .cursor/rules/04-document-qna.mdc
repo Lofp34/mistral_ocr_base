@@ -1,0 +1,137 @@
+# Document QnA avec Mistral
+
+## Principe
+- Combinaison OCR + LLM pour interaction en langage naturel
+- Workflow en deux étapes : traitement OCR puis analyse LLM
+- Questions contextuelles sur le contenu documentaire
+
+## Configuration des Messages
+
+### Structure de Base
+```python
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Votre question sur le document"
+            },
+            {
+                "type": "document_url",
+                "document_url": "https://example.com/document.pdf"
+            }
+        ]
+    }
+]
+```
+
+### Exemple Complet
+```python
+import os
+from mistralai import Mistral
+
+api_key = os.environ["MISTRAL_API_KEY"]
+client = Mistral(api_key=api_key)
+model = "mistral-small-latest"
+
+# Définition des messages
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Quel est le titre principal du document ?"
+            },
+            {
+                "type": "document_url",
+                "document_url": "https://arxiv.org/pdf/1805.04770"
+            }
+        ]
+    }
+]
+
+# Appel de l'API chat
+chat_response = client.chat.complete(
+    model=model,
+    messages=messages
+)
+
+print(chat_response.choices[0].message.content)
+```
+
+## Utilisation avec Fichier Uploadé
+```python
+# Upload du fichier
+uploaded_pdf = client.files.upload(
+    file={
+        "file_name": "document.pdf",
+        "content": open("document.pdf", "rb"),
+    },
+    purpose="ocr"
+)
+
+# Récupération de l'URL signée
+signed_url = client.files.get_signed_url(file_id=uploaded_pdf.id)
+
+# Utilisation dans les messages
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Résumez les points principaux de ce document"
+            },
+            {
+                "type": "document_url",
+                "document_url": signed_url.url
+            }
+        ]
+    }
+]
+```
+
+## Types de Questions Supportées
+
+### Questions Factuelles
+- "Quel est l'auteur du document ?"
+- "Quelle est la date de publication ?"
+- "Quel est le montant total de la facture ?"
+
+### Questions d'Analyse
+- "Résumez les points principaux"
+- "Quelles sont les conclusions du document ?"
+- "Analysez les avantages et inconvénients mentionnés"
+
+### Questions de Comparaison
+- "Comparez les deux approches présentées"
+- "Quelles sont les différences entre les méthodes A et B ?"
+
+### Questions d'Extraction
+- "Listez tous les montants mentionnés"
+- "Extrayez les dates importantes"
+- "Quels sont les termes techniques utilisés ?"
+
+## Modèles Recommandés
+- `mistral-small-latest` : équilibre performance/coût
+- `mistral-medium-latest` : meilleure compréhension
+- `mistral-large-latest` : analyse la plus avancée
+
+## Bonnes Pratiques
+- Formuler des questions claires et spécifiques
+- Utiliser le contexte du document dans les questions
+- Gérer les cas où le document ne contient pas l'information demandée
+- Implémenter un système de conversation pour des questions de suivi
+- Valider les URLs de documents avant utilisation
+
+## Gestion des Erreurs
+- Vérifier la validité du document
+- Gérer les timeouts pour les documents volumineux
+- Implémenter des retry en cas d'échec
+- Valider les réponses du modèle
+description:
+globs:
+alwaysApply: false
+---

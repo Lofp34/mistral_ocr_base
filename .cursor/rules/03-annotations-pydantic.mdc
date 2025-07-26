@@ -1,0 +1,104 @@
+# Annotations OCR avec Modèles Pydantic
+
+## Types d'Annotations
+- **BBox Annotations** : annotation des images/figures extraites par l'OCR
+- **Document Annotations** : annotation complète du document
+
+## Définition des Modèles Pydantic
+
+### Modèle BBox Annotation
+```python
+from pydantic import BaseModel, Field
+
+class Image(BaseModel):
+    image_type: str = Field(..., description="Le type de l'image")
+    short_description: str = Field(..., description="Description courte en anglais")
+    summary: str = Field(..., description="Résumé de l'image")
+```
+
+### Modèle Document Annotation
+```python
+class DocumentInfo(BaseModel):
+    title: str = Field(..., description="Titre du document")
+    author: str = Field(..., description="Auteur du document")
+    summary: str = Field(..., description="Résumé du contenu")
+    key_points: list[str] = Field(..., description="Points clés du document")
+```
+
+## Utilisation des Annotations
+
+### BBox Annotations
+```python
+from mistralai import Mistral, DocumentURLChunk, ResponseFormat
+from mistralai.extra import response_format_from_pydantic_model
+
+# Définition du format de réponse
+bbox_format = response_format_from_pydantic_model(Image)
+
+# Appel OCR avec annotations BBox
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(
+        document_url="https://example.com/document.pdf"
+    ),
+    bbox_annotation_format=bbox_format,
+    include_image_base64=True
+)
+```
+
+### Document Annotations
+```python
+# Définition du format de réponse
+doc_format = response_format_from_pydantic_model(DocumentInfo)
+
+# Appel OCR avec annotations Document
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(
+        document_url="https://example.com/document.pdf"
+    ),
+    document_annotation_format=doc_format
+)
+```
+
+## Cas d'Usage Spécifiques
+
+### Extraction de Données de Facture
+```python
+class InvoiceData(BaseModel):
+    vendor_name: str = Field(..., description="Nom du vendeur")
+    invoice_number: str = Field(..., description="Numéro de facture")
+    total_amount: float = Field(..., description="Montant total")
+    date: str = Field(..., description="Date de facturation")
+    items: list[dict] = Field(..., description="Liste des articles")
+```
+
+### Extraction de Données de Reçu
+```python
+class ReceiptData(BaseModel):
+    merchant_name: str = Field(..., description="Nom du marchand")
+    transaction_amount: float = Field(..., description="Montant de la transaction")
+    date: str = Field(..., description="Date de transaction")
+    items: list[str] = Field(..., description="Articles achetés")
+```
+
+### Analyse de Contrat
+```python
+class ContractData(BaseModel):
+    contract_type: str = Field(..., description="Type de contrat")
+    parties: list[str] = Field(..., description="Parties impliquées")
+    key_clauses: list[str] = Field(..., description="Clauses importantes")
+    obligations: list[str] = Field(..., description="Obligations principales")
+    termination_conditions: str = Field(..., description="Conditions de résiliation")
+```
+
+## Bonnes Pratiques
+- Utiliser des descriptions claires dans les champs Field
+- Valider les modèles avant utilisation
+- Gérer les cas où les annotations échouent
+- Utiliser des types appropriés (str, int, float, list, dict)
+- Documenter les modèles avec des exemples
+description:
+globs:
+alwaysApply: false
+---

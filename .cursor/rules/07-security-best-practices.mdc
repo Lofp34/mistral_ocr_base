@@ -1,0 +1,268 @@
+# Bonnes Pratiques de Sécurité
+
+## Gestion des API Keys
+
+### Stockage Sécurisé
+```python
+import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env
+load_dotenv()
+
+# Récupération sécurisée de l'API key
+api_key = os.getenv("MISTRAL_API_KEY")
+if not api_key:
+    raise ValueError("MISTRAL_API_KEY non définie dans les variables d'environnement")
+```
+
+### Validation de l'API Key
+```python
+def validate_api_key(api_key):
+    if not api_key or len(api_key) < 10:
+        raise ValueError("API key invalide")
+    return True
+```
+
+## Validation des Entrées
+
+### Validation des URLs
+```python
+from urllib.parse import urlparse
+import re
+
+def validate_document_url(url):
+    """Valide une URL de document"""
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError("URL invalide")
+        
+        # Vérifier les domaines autorisés si nécessaire
+        allowed_domains = ['example.com', 'trusted-domain.com']
+        if parsed.netloc not in allowed_domains:
+            raise ValueError(f"Domaine non autorisé: {parsed.netloc}")
+            
+        return True
+    except Exception as e:
+        raise ValueError(f"Erreur de validation URL: {e}")
+```
+
+### Validation des Fichiers
+```python
+import os
+import magic
+
+def validate_file_security(file_path):
+    """Valide la sécurité d'un fichier"""
+    # Vérifier l'existence
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Fichier non trouvé: {file_path}")
+    
+    # Vérifier la taille (max 50MB)
+    file_size = os.path.getsize(file_path)
+    if file_size > 50 * 1024 * 1024:  # 50MB
+        raise ValueError(f"Fichier trop volumineux: {file_size / (1024*1024):.2f}MB")
+    
+    # Vérifier le type MIME
+    mime_type = magic.from_file(file_path, mime=True)
+    allowed_types = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'image/png',
+        'image/jpeg',
+        'image/avif'
+    ]
+    
+    if mime_type not in allowed_types:
+        raise ValueError(f"Type de fichier non autorisé: {mime_type}")
+    
+    return True
+```
+
+## Gestion des Erreurs Sécurisée
+
+### Logging Sécurisé
+```python
+import logging
+import hashlib
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def log_secure_operation(operation, file_path=None, user_id=None):
+    """Log sécurisé sans exposer d'informations sensibles"""
+    log_data = {
+        "operation": operation,
+        "timestamp": datetime.now().isoformat(),
+        "user_id": user_id if user_id else "anonymous"
+    }
+    
+    if file_path:
+        # Hasher le chemin du fichier pour la sécurité
+        file_hash = hashlib.sha256(file_path.encode()).hexdigest()[:8]
+        log_data["file_hash"] = file_hash
+    
+    logger.info(f"Opération sécurisée: {log_data}")
+```
+
+### Gestion des Exceptions
+```python
+def secure_ocr_processing(document_url, user_id=None):
+    """Traitement OCR sécurisé"""
+    try:
+        # Validation des entrées
+        validate_document_url(document_url)
+        
+        # Log de l'opération
+        log_secure_operation("ocr_start", document_url, user_id)
+        
+        # Traitement OCR
+        response = client.ocr.process(
+            model="mistral-ocr-latest",
+            document=DocumentURLChunk(document_url=document_url)
+        )
+        
+        # Log du succès
+        log_secure_operation("ocr_success", document_url, user_id)
+        
+        return response
+        
+    except ValueError as e:
+        logger.warning(f"Erreur de validation: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Erreur inattendue: {e}")
+        # Ne pas exposer les détails internes
+        raise Exception("Erreur lors du traitement du document")
+```
+
+## Protection des Données
+
+### Nettoyage des Données Sensibles
+```python
+import re
+
+def sanitize_response_data(response_data):
+    """Nettoie les données de réponse des informations sensibles"""
+    if isinstance(response_data, dict):
+        sanitized = {}
+        for key, value in response_data.items():
+            if key.lower() in ['api_key', 'token', 'password', 'secret']:
+                sanitized[key] = '***REDACTED***'
+            elif isinstance(value, (dict, list)):
+                sanitized[key] = sanitize_response_data(value)
+            else:
+                sanitized[key] = value
+        return sanitized
+    elif isinstance(response_data, list):
+        return [sanitize_response_data(item) for item in response_data]
+    else:
+        return response_data
+```
+
+### Chiffrement des Données Locales
+```python
+from cryptography.fernet import Fernet
+import base64
+
+class SecureStorage:
+    def __init__(self, key=None):
+        if key is None:
+            key = Fernet.generate_key()
+        self.cipher = Fernet(key)
+    
+    def encrypt_data(self, data):
+        """Chiffre les données sensibles"""
+        if isinstance(data, str):
+            return self.cipher.encrypt(data.encode()).decode()
+        return data
+    
+    def decrypt_data(self, encrypted_data):
+        """Déchiffre les données sensibles"""
+        if isinstance(encrypted_data, str):
+            return self.cipher.decrypt(encrypted_data.encode()).decode()
+        return encrypted_data
+```
+
+## Rate Limiting et Quotas
+
+### Implémentation de Rate Limiting
+```python
+import time
+from collections import defaultdict
+
+class RateLimiter:
+    def __init__(self, max_requests=100, time_window=3600):
+        self.max_requests = max_requests
+        self.time_window = time_window
+        self.requests = defaultdict(list)
+    
+    def can_make_request(self, user_id):
+        """Vérifie si un utilisateur peut faire une requête"""
+        now = time.time()
+        user_requests = self.requests[user_id]
+        
+        # Nettoyer les anciennes requêtes
+        user_requests = [req_time for req_time in user_requests 
+                        if now - req_time < self.time_window]
+        self.requests[user_id] = user_requests
+        
+        # Vérifier la limite
+        if len(user_requests) >= self.max_requests:
+            return False
+        
+        # Ajouter la nouvelle requête
+        user_requests.append(now)
+        return True
+```
+
+## Bonnes Pratiques Générales
+
+### Configuration Sécurisée
+```python
+# Configuration sécurisée
+SECURE_CONFIG = {
+    "max_file_size": 50 * 1024 * 1024,  # 50MB
+    "allowed_domains": ["example.com", "trusted-domain.com"],
+    "allowed_mime_types": [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/png",
+        "image/jpeg"
+    ],
+    "rate_limit_requests": 100,
+    "rate_limit_window": 3600,  # 1 heure
+    "log_sensitive_data": False
+}
+```
+
+### Vérifications de Sécurité
+```python
+def security_checklist():
+    """Liste de vérifications de sécurité"""
+    checks = {
+        "api_key_configured": bool(os.getenv("MISTRAL_API_KEY")),
+        "api_key_length": len(os.getenv("MISTRAL_API_KEY", "")) >= 10,
+        "secure_logging": not SECURE_CONFIG["log_sensitive_data"],
+        "rate_limiting_enabled": True
+    }
+    
+    return all(checks.values()), checks
+```
+
+### Recommandations
+- Ne jamais commiter d'API keys dans le code
+- Utiliser des variables d'environnement pour les secrets
+- Valider toutes les entrées utilisateur
+- Implémenter un système de logging sécurisé
+- Mettre en place des limites de taux d'utilisation
+- Chiffrer les données sensibles stockées localement
+- Maintenir les dépendances à jour
+- Effectuer des audits de sécurité réguliers
+description:
+globs:
+alwaysApply: false
+---

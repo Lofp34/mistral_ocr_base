@@ -1,0 +1,267 @@
+# Structure du Projet Mistral OCR
+
+## Organisation des Dossiers
+
+```
+mistral_ocr_base/
+├── .cursor/
+│   └── rules/                    # Règles Cursor
+├── src/
+│   ├── __init__.py
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── settings.py           # Configuration de l'application
+│   │   └── models.py             # Modèles Pydantic
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── client.py             # Client Mistral configuré
+│   │   ├── security.py           # Fonctions de sécurité
+│   │   └── validators.py         # Validateurs
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── ocr_service.py        # Service OCR de base
+│   │   ├── annotation_service.py # Service d'annotations
+│   │   ├── qna_service.py        # Service QnA
+│   │   └── file_service.py       # Service de gestion des fichiers
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── file_utils.py         # Utilitaires de fichiers
+│   │   ├── response_utils.py     # Utilitaires de réponse
+│   │   └── logging_utils.py      # Utilitaires de logging
+│   └── examples/
+│       ├── __init__.py
+│       ├── basic_ocr.py          # Exemples OCR de base
+│       ├── annotations.py        # Exemples d'annotations
+│       ├── document_qna.py       # Exemples QnA
+│       └── use_cases.py          # Cas d'usage spécifiques
+├── tests/
+│   ├── __init__.py
+│   ├── test_ocr.py
+│   ├── test_annotations.py
+│   ├── test_qna.py
+│   └── test_security.py
+├── docs/
+│   ├── api.md                    # Documentation API
+│   ├── examples.md               # Exemples d'utilisation
+│   └── deployment.md             # Guide de déploiement
+├── data/
+│   ├── input/                    # Fichiers d'entrée
+│   ├── output/                   # Fichiers de sortie
+│   └── temp/                     # Fichiers temporaires
+├── .env.example                  # Exemple de variables d'environnement
+├── .gitignore
+├── requirements.txt              # Dépendances Python
+├── README.md                     # Documentation principale
+└── setup.py                      # Configuration du package
+```
+
+## Fichiers de Configuration
+
+### settings.py
+```python
+import os
+from typing import List
+
+class Settings:
+    # API Configuration
+    MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "")
+    MISTRAL_MODEL: str = "mistral-ocr-latest"
+    
+    # File Configuration
+    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
+    ALLOWED_EXTENSIONS: List[str] = [".pdf", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".avif"]
+    TEMP_DIR: str = "data/temp"
+    
+    # Security Configuration
+    ALLOWED_DOMAINS: List[str] = ["example.com", "trusted-domain.com"]
+    RATE_LIMIT_REQUESTS: int = 100
+    RATE_LIMIT_WINDOW: int = 3600  # 1 heure
+    
+    # Logging Configuration
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "logs/mistral_ocr.log"
+    
+    # Output Configuration
+    OUTPUT_FORMAT: str = "json"  # json, csv, xml
+    INCLUDE_IMAGES: bool = True
+    IMAGE_LIMIT: int = 10
+    IMAGE_MIN_SIZE: int = 100
+
+settings = Settings()
+```
+
+### models.py
+```python
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
+
+# Modèles de base pour les annotations
+class BaseAnnotation(BaseModel):
+    """Modèle de base pour toutes les annotations"""
+    confidence: float = Field(..., description="Niveau de confiance")
+    source: str = Field(..., description="Source de l'annotation")
+
+# Modèles pour les cas d'usage spécifiques
+class InvoiceData(BaseAnnotation):
+    vendor_name: str = Field(..., description="Nom du vendeur")
+    invoice_number: str = Field(..., description="Numéro de facture")
+    total_amount: float = Field(..., description="Montant total")
+    # ... autres champs
+
+class ReceiptData(BaseAnnotation):
+    merchant_name: str = Field(..., description="Nom du marchand")
+    transaction_amount: float = Field(..., description="Montant de la transaction")
+    # ... autres champs
+
+class ContractData(BaseAnnotation):
+    contract_type: str = Field(..., description="Type de contrat")
+    parties: List[str] = Field(..., description="Parties impliquées")
+    # ... autres champs
+```
+
+## Conventions de Nommage
+
+### Fichiers Python
+- **snake_case** pour les noms de fichiers : `ocr_service.py`
+- **PascalCase** pour les classes : `OcrService`
+- **snake_case** pour les fonctions : `process_document()`
+- **UPPER_CASE** pour les constantes : `MAX_FILE_SIZE`
+
+### Variables et Fonctions
+```python
+# Variables
+api_key = os.getenv("MISTRAL_API_KEY")
+document_url = "https://example.com/document.pdf"
+ocr_response = client.ocr.process(...)
+
+# Fonctions
+def process_document_with_ocr(document_path: str) -> dict:
+    """Traite un document avec OCR"""
+    pass
+
+def extract_invoice_data(ocr_response: dict) -> InvoiceData:
+    """Extrait les données de facture"""
+    pass
+```
+
+### Classes
+```python
+class OcrService:
+    """Service pour le traitement OCR"""
+    
+    def __init__(self, api_key: str):
+        self.client = Mistral(api_key=api_key)
+    
+    def process_document(self, document_url: str) -> dict:
+        """Traite un document avec OCR"""
+        pass
+
+class AnnotationService:
+    """Service pour les annotations"""
+    
+    def __init__(self, ocr_service: OcrService):
+        self.ocr_service = ocr_service
+```
+
+## Gestion des Imports
+
+### Imports Organisés
+```python
+# Imports standard
+import os
+import logging
+from typing import Dict, List, Optional
+from pathlib import Path
+
+# Imports tiers
+from mistralai import Mistral, DocumentURLChunk
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Imports locaux
+from .config.settings import settings
+from .core.security import validate_api_key
+from .models import InvoiceData, ReceiptData
+```
+
+## Documentation
+
+### Docstrings
+```python
+def process_document_with_annotations(
+    document_url: str,
+    annotation_model: type[BaseModel]
+) -> dict:
+    """
+    Traite un document avec OCR et annotations.
+    
+    Args:
+        document_url (str): URL du document à traiter
+        annotation_model (type[BaseModel]): Modèle Pydantic pour les annotations
+    
+    Returns:
+        dict: Réponse OCR avec annotations
+        
+    Raises:
+        ValueError: Si l'URL est invalide
+        FileNotFoundError: Si le document n'est pas trouvé
+        
+    Example:
+        >>> response = process_document_with_annotations(
+        ...     "https://example.com/invoice.pdf",
+        ...     InvoiceData
+        ... )
+    """
+    pass
+```
+
+## Tests
+
+### Structure des Tests
+```python
+# test_ocr.py
+import pytest
+from unittest.mock import Mock, patch
+from src.services.ocr_service import OcrService
+
+class TestOcrService:
+    def setup_method(self):
+        self.ocr_service = OcrService("test_api_key")
+    
+    def test_process_document_success(self):
+        """Test du traitement réussi d'un document"""
+        with patch('mistralai.Mistral') as mock_client:
+            # Configuration du mock
+            mock_response = Mock()
+            mock_response.pages = [{"text": "Test content"}]
+            mock_client.return_value.ocr.process.return_value = mock_response
+            
+            # Test
+            result = self.ocr_service.process_document("test.pdf")
+            assert result is not None
+            assert "pages" in result
+```
+
+## Bonnes Pratiques
+
+### Organisation
+- Séparer les responsabilités dans des modules distincts
+- Utiliser des services pour la logique métier
+- Centraliser la configuration
+- Implémenter des tests unitaires et d'intégration
+
+### Maintenabilité
+- Documenter le code avec des docstrings
+- Utiliser des types hints
+- Suivre les conventions PEP 8
+- Implémenter un système de logging
+
+### Évolutivité
+- Utiliser des interfaces pour les services
+- Implémenter des patterns de design (Factory, Strategy)
+- Prévoir l'extension des fonctionnalités
+- Maintenir une architecture modulaire
+description:
+globs:
+alwaysApply: false
+---

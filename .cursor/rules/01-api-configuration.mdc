@@ -1,0 +1,32 @@
+# Configuration API Mistral OCR
+
+## Authentification
+- Utiliser une API Key Mistral stockée dans les variables d'environnement
+- Variable d'environnement : `MISTRAL_API_KEY`
+- Authentification Bearer token dans les headers HTTP
+
+## Initialisation du Client
+```python
+import os
+from mistralai import Mistral
+
+api_key = os.environ["MISTRAL_API_KEY"]
+client = Mistral(api_key=api_key)
+```
+
+## Modèle OCR
+- Modèle requis : `mistral-ocr-latest`
+- Toujours spécifier le modèle dans les appels OCR
+
+## Gestion des Erreurs
+- Vérifier la présence de l'API key avant utilisation
+- Gérer les erreurs d'authentification (401)
+- Gérer les erreurs de validation (422)
+- Implémenter des retry en cas d'erreurs temporaires
+
+## Bonnes Pratiques
+- Ne jamais hardcoder l'API key dans le code
+- Utiliser des variables d'environnement ou des fichiers de configuration sécurisés
+- Valider la configuration au démarrage de l'application
+alwaysApply: true
+---

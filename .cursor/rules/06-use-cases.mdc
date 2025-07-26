@@ -1,0 +1,223 @@
+# Cas d'Usage Spécifiques
+
+## 1. Traitement de Formulaires
+
+### Modèle de Données
+```python
+from pydantic import BaseModel, Field
+
+class FormData(BaseModel):
+    form_type: str = Field(..., description="Type de formulaire")
+    fields: dict[str, str] = Field(..., description="Champs remplis")
+    signatures: list[str] = Field(..., description="Emplacements des signatures")
+    checkboxes: dict[str, bool] = Field(..., description="Cases cochées")
+```
+
+### Utilisation
+```python
+# OCR avec annotation de formulaire
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(document_url="form.pdf"),
+    document_annotation_format=response_format_from_pydantic_model(FormData)
+)
+```
+
+## 2. Extraction de Données de Facture
+
+### Modèle de Données
+```python
+class InvoiceData(BaseModel):
+    vendor_name: str = Field(..., description="Nom du vendeur")
+    vendor_address: str = Field(..., description="Adresse du vendeur")
+    invoice_number: str = Field(..., description="Numéro de facture")
+    invoice_date: str = Field(..., description="Date de facturation")
+    due_date: str = Field(..., description="Date d'échéance")
+    total_amount: float = Field(..., description="Montant total HT")
+    tax_amount: float = Field(..., description="Montant des taxes")
+    total_with_tax: float = Field(..., description="Montant total TTC")
+    items: list[dict] = Field(..., description="Liste des articles")
+    payment_terms: str = Field(..., description="Conditions de paiement")
+```
+
+### Utilisation
+```python
+# Extraction automatique des données de facture
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(document_url="invoice.pdf"),
+    document_annotation_format=response_format_from_pydantic_model(InvoiceData)
+)
+
+# Traitement des données extraites
+invoice_data = response.document_annotation
+print(f"Facture {invoice_data.invoice_number} - {invoice_data.total_with_tax}€")
+```
+
+## 3. Traitement de Reçus
+
+### Modèle de Données
+```python
+class ReceiptData(BaseModel):
+    merchant_name: str = Field(..., description="Nom du marchand")
+    merchant_address: str = Field(..., description="Adresse du marchand")
+    transaction_date: str = Field(..., description="Date de transaction")
+    transaction_time: str = Field(..., description="Heure de transaction")
+    total_amount: float = Field(..., description="Montant total")
+    tax_amount: float = Field(..., description="Montant des taxes")
+    payment_method: str = Field(..., description="Méthode de paiement")
+    items: list[dict] = Field(..., description="Articles achetés")
+    receipt_number: str = Field(..., description="Numéro de reçu")
+```
+
+### Utilisation
+```python
+# Extraction des données de reçu
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(document_url="receipt.jpg"),
+    document_annotation_format=response_format_from_pydantic_model(ReceiptData)
+)
+```
+
+## 4. Analyse de Contrats
+
+### Modèle de Données
+```python
+class ContractData(BaseModel):
+    contract_type: str = Field(..., description="Type de contrat")
+    contract_number: str = Field(..., description="Numéro de contrat")
+    parties: list[str] = Field(..., description="Parties impliquées")
+    effective_date: str = Field(..., description="Date d'effet")
+    expiration_date: str = Field(..., description="Date d'expiration")
+    key_clauses: list[str] = Field(..., description="Clauses importantes")
+    obligations: list[str] = Field(..., description="Obligations principales")
+    termination_conditions: str = Field(..., description="Conditions de résiliation")
+    financial_terms: dict[str, float] = Field(..., description="Termes financiers")
+    signatures: list[str] = Field(..., description="Signatures requises")
+```
+
+### Utilisation
+```python
+# Analyse de contrat
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(document_url="contract.pdf"),
+    document_annotation_format=response_format_from_pydantic_model(ContractData)
+)
+```
+
+## 5. QnA sur Documents Spécialisés
+
+### Questions sur Factures
+```python
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Quel est le montant total de cette facture ?"},
+            {"type": "document_url", "document_url": "invoice.pdf"}
+        ]
+    }
+]
+```
+
+### Questions sur Contrats
+```python
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Quelles sont les obligations principales de l'acheteur ?"},
+            {"type": "document_url", "document_url": "contract.pdf"}
+        ]
+    }
+]
+```
+
+### Questions sur Formulaires
+```python
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Tous les champs obligatoires sont-ils remplis ?"},
+            {"type": "document_url", "document_url": "form.pdf"}
+        ]
+    }
+]
+```
+
+## 6. Traitement en Lot
+
+### Script de Traitement Multiple
+```python
+import os
+from pathlib import Path
+
+def process_documents_batch(folder_path, document_type):
+    results = []
+    
+    for file_path in Path(folder_path).glob("*.pdf"):
+        try:
+            # Upload du fichier
+            uploaded_file = client.files.upload(
+                file={"file_name": file_path.name, "content": open(file_path, "rb")},
+                purpose="ocr"
+            )
+            
+            # Traitement selon le type
+            if document_type == "invoice":
+                response = client.ocr.process(
+                    model="mistral-ocr-latest",
+                    document=DocumentURLChunk(document_url=uploaded_file.url),
+                    document_annotation_format=response_format_from_pydantic_model(InvoiceData)
+                )
+            elif document_type == "receipt":
+                response = client.ocr.process(
+                    model="mistral-ocr-latest",
+                    document=DocumentURLChunk(document_url=uploaded_file.url),
+                    document_annotation_format=response_format_from_pydantic_model(ReceiptData)
+                )
+            
+            results.append({
+                "file": file_path.name,
+                "data": response.document_annotation,
+                "status": "success"
+            })
+            
+        except Exception as e:
+            results.append({
+                "file": file_path.name,
+                "error": str(e),
+                "status": "error"
+            })
+    
+    return results
+```
+
+## Bonnes Pratiques par Cas d'Usage
+
+### Formulaires
+- Valider la complétude des champs obligatoires
+- Vérifier la cohérence des données
+- Gérer les signatures et tampons
+
+### Factures
+- Vérifier les calculs (totaux, taxes)
+- Valider les dates et numéros
+- Extraire les conditions de paiement
+
+### Contrats
+- Identifier les parties et leurs rôles
+- Extraire les dates importantes
+- Analyser les clauses critiques
+
+### Reçus
+- Valider les montants et taxes
+- Extraire les informations de paiement
+- Gérer les codes-barres et QR codes
+description:
+globs:
+alwaysApply: false
+---
