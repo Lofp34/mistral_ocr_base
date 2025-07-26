@@ -40,8 +40,14 @@ pip install -r requirements.txt
 
 4. **Configurer l'API Key Mistral**
 ```bash
-export MISTRAL_API_KEY="votre_api_key_ici"
+# Copier le template
+cp env_template.txt .env
+
+# Éditer le fichier .env et ajouter votre clé API
+echo "MISTRAL_API_KEY=votre_api_key_ici" >> .env
 ```
+
+⚠️ **IMPORTANT :** Ne jamais commiter le fichier `.env` ! Il est protégé par `.gitignore`.
 
 ## 🎯 Utilisation
 
@@ -64,6 +70,18 @@ python src/main.py document.pdf --raw-text
 ```bash
 python src/main.py document.pdf --output /chemin/vers/sortie
 ```
+
+### Interface Graphique
+```bash
+python launch_gui.py
+```
+
+L'interface graphique offre :
+- 📁 Sélection facile de fichiers PDF
+- ⚡ 4 modes d'extraction avec boutons
+- 🔄 Traitement en lot (toutes les actions)
+- 📊 Statut en temps réel
+- 📋 Affichage des résultats formatés
 
 ## 📊 Format de Sortie
 
@@ -167,13 +185,34 @@ python src/main.py facture.pdf --raw-text --output ./textes
 - **Formats supportés** : PDF, DOCX, PPTX
 - **Taille maximale** : 50MB par fichier
 
+## 🔒 Sécurité
+
+⚠️ **IMPORTANT :** Ce projet traite des données sensibles (factures, clés API).
+
+### 🛡️ Protection des Données
+- Le fichier `.env` contient votre clé API et est **ignoré par Git**
+- Les fichiers PDF ne sont **jamais commités**
+- Utilisez `git status` pour vérifier avant chaque commit
+
+### 📋 Vérifications de Sécurité
+```bash
+# Vérifier que .env n'est pas tracké
+git status | grep .env
+
+# Vérifier le .gitignore
+cat .gitignore
+```
+
+📖 **Voir [SECURITY.md](SECURITY.md) pour le guide complet de sécurité.**
+
 ## 🤝 Contribution
 
 1. Fork le projet
 2. Créez une branche pour votre fonctionnalité
-3. Committez vos changements
-4. Poussez vers la branche
-5. Ouvrez une Pull Request
+3. **Vérifiez la sécurité** avant de commiter
+4. Committez vos changements
+5. Poussez vers la branche
+6. Ouvrez une Pull Request
 
 ## 📄 Licence
 
