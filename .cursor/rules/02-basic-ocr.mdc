@@ -1,3 +1,95 @@
 ---
 alwaysApply: true
+description: 02-basic-ocr
 ---
+
+---
+alwaysApply: true
+description: OCR de base avec Mistral - extraction de texte et structure
+---
+
+# OCR de Base avec Mistral
+
+## Modèle et Configuration
+- Modèle : `mistral-ocr-latest`
+- Extrait le texte en préservant la structure et hiérarchie
+- Retourne les résultats en format markdown
+- Gère les layouts complexes (multi-colonnes, contenu mixte)
+
+## Formats d'Entrée Supportés
+- **Document URL** : PDF, PPTX, DOCX
+- **Image URL** : PNG, JPEG/JPG, AVIF
+- **File Upload** : via l'API files.upload()
+
+## Exemple d'Utilisation - Document URL
+```python
+from mistralai import Mistral, DocumentURLChunk
+
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(
+        document_url="https://example.com/document.pdf"
+    ),
+    include_image_base64=True
+)
+```
+
+## Exemple d'Utilisation - Base64
+```python
+import base64
+
+def encode_pdf(pdf_path):
+    with open(pdf_path, "rb") as pdf_file:
+        return base64.b64encode(pdf_file.read()).decode('utf-8')
+
+base64_pdf = encode_pdf("document.pdf")
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(
+        document_url=f"data:application/pdf;base64,{base64_pdf}"
+    )
+)
+```
+
+## Exemple d'Utilisation - File Upload
+```python
+# Upload du fichier
+uploaded_file = client.files.upload(
+    file={
+        "file_name": "document.pdf",
+        "content": open("document.pdf", "rb"),
+    },
+    purpose="ocr"
+)
+
+# Récupération de l'URL signée
+signed_url = client.files.get_signed_url(file_id=uploaded_file.id)
+
+# Traitement OCR
+response = client.ocr.process(
+    model="mistral-ocr-latest",
+    document=DocumentURLChunk(document_url=signed_url.url)
+)
+```
+
+## Paramètres Optionnels
+- `pages` : pages spécifiques à traiter (numéro, plage, liste)
+- `include_image_base64` : inclure les images en base64
+- `image_limit` : limite du nombre d'images à extraire
+- `image_min_size` : taille minimale des images à extraire
+
+## Structure de Réponse
+```python
+{
+    "pages": [...],  # Informations OCR par page
+    "model": "mistral-ocr-latest",
+    "document_annotation": "...",  # Si format d'annotation fourni
+    "usage_info": {...}  # Informations d'utilisation
+}
+```
+
+## Bonnes Pratiques
+- Toujours vérifier la validité de l'URL avant traitement
+- Gérer les erreurs de fichier non trouvé
+- Utiliser `include_image_base64=True` si besoin d'analyser les images
+- Traiter les documents volumineux par pages si nécessaire

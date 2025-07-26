@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 04-document-qna
+---
+
+
 # Document QnA avec Mistral
 
 ## Principe
@@ -131,7 +137,3 @@ messages = [
 - Gérer les timeouts pour les documents volumineux
 - Implémenter des retry en cas d'échec
 - Valider les réponses du modèle
-description:
-globs:
-alwaysApply: false
----

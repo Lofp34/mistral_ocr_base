@@ -1,3 +1,4 @@
+
 # Déploiement et Monitoring
 
 ## Configuration d'Environnement
@@ -486,7 +487,3 @@ PRODUCTION_CONFIG = {
     }
 }
 ```
-description:
-globs:
-alwaysApply: false
----

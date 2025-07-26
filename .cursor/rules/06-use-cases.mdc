@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 06-use-cases
+---
+
+
 # Cas d'Usage Spécifiques
 
 ## 1. Traitement de Formulaires
@@ -217,7 +223,3 @@ def process_documents_batch(folder_path, document_type):
 - Valider les montants et taxes
 - Extraire les informations de paiement
 - Gérer les codes-barres et QR codes
-description:
-globs:
-alwaysApply: false
----

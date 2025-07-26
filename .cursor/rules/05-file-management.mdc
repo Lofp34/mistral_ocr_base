@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 05-file-management
+---
+
+
 # Gestion des Fichiers et Formats
 
 ## Formats Supportés
@@ -147,7 +153,3 @@ logging.info(f"Traitement du fichier: {file_path}")
 logging.debug(f"Format détecté: {file_extension}")
 logging.error(f"Erreur lors du traitement: {error}")
 ```
-description:
-globs:
-alwaysApply: false
----

@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 07-security-best-practices
+---
+
+
 # Bonnes Pratiques de Sécurité
 
 ## Gestion des API Keys
@@ -262,7 +268,3 @@ def security_checklist():
 - Chiffrer les données sensibles stockées localement
 - Maintenir les dépendances à jour
 - Effectuer des audits de sécurité réguliers
-description:
-globs:
-alwaysApply: false
----

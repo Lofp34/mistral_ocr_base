@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 09-optimization-performance
+---
+
+
 # Optimisation et Performance
 
 ## Gestion de la Mémoire
@@ -342,7 +348,3 @@ OPTIMAL_CONFIG = {
     "memory_limit": 1024  # MB
 }
 ```
-description:
-globs:
-alwaysApply: false
----

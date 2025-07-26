@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 08-project-structure
+---
+
+
 # Structure du Projet Mistral OCR
 
 ## Organisation des Dossiers
@@ -261,7 +267,3 @@ class TestOcrService:
 - Implémenter des patterns de design (Factory, Strategy)
 - Prévoir l'extension des fonctionnalités
 - Maintenir une architecture modulaire
-description:
-globs:
-alwaysApply: false
----

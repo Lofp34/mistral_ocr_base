@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+description: 03-annotations-pydantic
+---
+
+
 # Annotations OCR avec Modèles Pydantic
 
 ## Types d'Annotations
@@ -98,7 +104,3 @@ class ContractData(BaseModel):
 - Gérer les cas où les annotations échouent
 - Utiliser des types appropriés (str, int, float, list, dict)
 - Documenter les modèles avec des exemples
-description:
-globs:
-alwaysApply: false
----
