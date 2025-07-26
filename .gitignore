@@ -52,6 +52,7 @@ venv.bak/
 .venv/
 
 # IDE et éditeurs
+.cursor/
 .vscode/
 .idea/
 *.swp

@@ -1,0 +1,6 @@
+flask==2.3.3
+werkzeug==2.3.7
+mistralai==0.0.12
+pydantic==2.5.0
+python-dotenv==1.0.0
+pathlib2==2.3.7 
