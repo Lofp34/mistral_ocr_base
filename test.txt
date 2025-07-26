@@ -1,0 +1,23 @@
+(venv) laurents@MacBook-Pro-de-Laurent mistral_ocr_base-1 % python src/main.py document.pdf --analyze
+🚀 Extracteur de Lignes de Facturation - Mistral OCR
+============================================================
+📁 Fichier: document.pdf
+📏 Taille: 0.14 MB
+📄 Format: .pdf
+📂 Sortie: data/output
+✅ Extracteur initialisé avec succès
+
+🔍 Analyse de la structure de la facture...
+❌ Erreur d'analyse: 3 validation errors for ExtractionResult
+invoice_data.subtotal
+  Field required [type=missing, input_value={'document_type': 'factur...00, 64,80, 26/03/2024']}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+invoice_data.tax_amount
+  Field required [type=missing, input_value={'document_type': 'factur...00, 64,80, 26/03/2024']}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+invoice_data.lines
+  Field required [type=missing, input_value={'document_type': 'factur...00, 64,80, 26/03/2024']}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+
+✅ Traitement terminé!
+(venv) laurents@MacBook-Pro-de-Laurent mistral_ocr_base-1 % 

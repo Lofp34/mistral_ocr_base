@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "invoice_data": {
+    "annotations_detected": 3,
+    "handwritten_annotations": [
+      {
+        "text": "Bourdons",
+        "annotation_type": "purchase_purpose",
+        "confidence": 1.0,
+        "location": "détecté par QnA",
+        "payment_date": "21/5/24",
+        "purchase_purpose": "bourdon"
+      },
+      {
+        "text": "Vinement le 21/5/24",
+        "annotation_type": "note",
+        "confidence": 0.85,
+        "location": "détecté par QnA",
+        "payment_date": "21/5/24",
+        "purchase_purpose": null
+      },
+      {
+        "text": "21/5/24",
+        "annotation_type": "note",
+        "confidence": 0.85,
+        "location": "détecté par QnA",
+        "payment_date": "21/5/24",
+        "purchase_purpose": null
+      }
+    ],
+    "detection_method": "Document QnA",
+    "questions_asked": [
+      "Y a-t-il des annotations manuscrites sur cette facture ?",
+      "Quelles sont les dates de paiement mentionnées ?",
+      "Quels sont les objectifs d'achat mentionnés ?"
+    ]
+  },
+  "raw_text": null,
+  "error_message": null,
+  "processing_time": 9.48856806755066,
+  "confidence_score": 0.85
+}

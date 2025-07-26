@@ -1,0 +1,7 @@
+# Configuration Mistral AI OCR
+# Remplacez YOUR_ACTUAL_API_KEY par votre vraie clé API Mistral
+MISTRAL_API_KEY=YOUR_ACTUAL_API_KEY
+
+# Configuration de l'application
+ENVIRONMENT=development
+LOG_LEVEL=INFO 

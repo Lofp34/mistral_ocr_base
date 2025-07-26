@@ -1,0 +1,72 @@
+{
+  "success": true,
+  "invoice_data": {
+    "invoice_number": "FCT-102-2024-50451",
+    "invoice_date": "31/03/2024",
+    "vendor_name": "AGROJEEM",
+    "vendor_address": "3 Chemin des Prés 30840 MEYNES France",
+    "customer_name": "EARL LA FONTAINE",
+    "customer_address": "DOMAINE DES SOURCES 30127 BELLEGARDE",
+    "subtotal": 1494.0,
+    "tax_amount": 149.4,
+    "total_amount": 1643.4,
+    "currency": "EUR",
+    "payment_terms": null,
+    "due_date": "15/05/2024",
+    "lines": [
+      {
+        "description": "KOP RUCHE SMART 1000M2 MAXI U",
+        "quantity": 8.0,
+        "unit_price": 54.0,
+        "total": 432.0,
+        "tax_rate": 0.1,
+        "tax_amount": 43.2,
+        "unit": "UN",
+        "reference": "ENL-102-2024-14017"
+      },
+      {
+        "description": "KOP RUCHE TRIPOL U",
+        "quantity": 3.0,
+        "unit_price": 138.0,
+        "total": 414.0,
+        "tax_rate": 0.1,
+        "tax_amount": 41.4,
+        "unit": "UN",
+        "reference": "ENL-102-2024-14133"
+      },
+      {
+        "description": "KOP RUCHE SMART 1000M2 MAXI U",
+        "quantity": 12.0,
+        "unit_price": 54.0,
+        "total": 648.0,
+        "tax_rate": 0.1,
+        "tax_amount": 64.8,
+        "unit": "UN",
+        "reference": "ENL-102-2024-14348"
+      }
+    ],
+    "notes": null,
+    "handwritten_annotations": [
+      {
+        "text": "Bourdons",
+        "annotation_type": "purchase_purpose",
+        "confidence": 1.0,
+        "location": "corps principal",
+        "payment_date": null,
+        "purchase_purpose": "bourdon"
+      },
+      {
+        "text": "Talon à découper et à joindre au paiement",
+        "annotation_type": "note",
+        "confidence": 0.7,
+        "location": "pied de page",
+        "payment_date": null,
+        "purchase_purpose": null
+      }
+    ]
+  },
+  "raw_text": null,
+  "error_message": null,
+  "processing_time": 64.66715788841248,
+  "confidence_score": 0.95
+}
